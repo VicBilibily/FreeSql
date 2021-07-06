@@ -43,14 +43,14 @@ namespace FreeSql.Oracle.Curd
                         .Append("  update set ").Append(string.Join(", ", cols.Select(a =>
                             a.Attribute.IsVersion && a.Attribute.MapType != typeof(byte[]) ?
                             $"{_commonUtils.QuoteSqlName(a.Attribute.Name)} = t1.{_commonUtils.QuoteSqlName(a.Attribute.Name)} + 1" :
-                            $"{_commonUtils.QuoteSqlName(a.Attribute.Name)} = t2.{a.Attribute.Name}"
+                            $"{_commonUtils.QuoteSqlName(a.Attribute.Name)} = t2.{_commonUtils.QuoteSqlName(a.Attribute.Name)}"
                             ))).Append(" \r\n");
 
                 cols = _table.Columns.Values.Where(a => a.Attribute.CanInsert == true);
                 if (cols.Any())
                     sb.Append("WHEN NOT MATCHED THEN \r\n")
                         .Append("  insert (").Append(string.Join(", ", cols.Select(a => _commonUtils.QuoteSqlName(a.Attribute.Name)))).Append(") \r\n")
-                        .Append("  values (").Append(string.Join(", ", cols.Select(a => $"t2.{a.Attribute.Name}"))).Append(")");
+                        .Append("  values (").Append(string.Join(", ", cols.Select(a => $"t2.{_commonUtils.QuoteSqlName(a.Attribute.Name)}"))).Append(")");
 
                 return sb.ToString();
             }
