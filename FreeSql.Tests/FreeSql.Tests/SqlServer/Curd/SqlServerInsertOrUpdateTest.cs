@@ -462,5 +462,84 @@ WHEN NOT MATCHED THEN
             [Column(CanUpdate = false, ServerTime = DateTimeKind.Local)]
             public DateTime CreateTime { get; set; }
         }
+
+        [Fact]
+        public void InsertOrUpdate_NameWithKeywords()
+        {
+            fsql.Delete<tbiou05>().Where("1=1").ExecuteAffrows();
+            var iou = fsql.InsertOrUpdate<tbiou05>().SetSource(new tbiou05 { id = 1, index = "01" });
+            var sql = iou.ToSql();
+            Assert.Equal(@"MERGE INTO [tbiou05] t1 
+USING (SELECT 1 as [id], N'01' as [index] ) t2 ON (t1.[id] = t2.id) 
+WHEN MATCHED THEN 
+  update set [index] = t2.[index] 
+WHEN NOT MATCHED THEN 
+  insert ([id], [index]) 
+  values (t2.[id], t2.[index]);", sql);
+            Assert.Equal(1, iou.ExecuteAffrows());
+
+            iou = fsql.InsertOrUpdate<tbiou05>().SetSource(new tbiou05 { id = 1, index = "011" });
+            sql = iou.ToSql();
+            Assert.Equal(@"MERGE INTO [tbiou05] t1 
+USING (SELECT 1 as [id], N'011' as [index] ) t2 ON (t1.[id] = t2.id) 
+WHEN MATCHED THEN 
+  update set [index] = t2.[index] 
+WHEN NOT MATCHED THEN 
+  insert ([id], [index]) 
+  values (t2.[id], t2.[index]);", sql);
+            Assert.Equal(1, iou.ExecuteAffrows());
+
+            iou = fsql.InsertOrUpdate<tbiou05>().SetSource(new tbiou05 { id = 2, index = "02" });
+            sql = iou.ToSql();
+            Assert.Equal(@"MERGE INTO [tbiou05] t1 
+USING (SELECT 2 as [id], N'02' as [index] ) t2 ON (t1.[id] = t2.id) 
+WHEN MATCHED THEN 
+  update set [index] = t2.[index] 
+WHEN NOT MATCHED THEN 
+  insert ([id], [index]) 
+  values (t2.[id], t2.[index]);", sql);
+            Assert.Equal(1, iou.ExecuteAffrows());
+
+            iou = fsql.InsertOrUpdate<tbiou05>().SetSource(new[] { new tbiou05 { id = 1, index = "01" }, new tbiou05 { id = 2, index = "02" }, new tbiou05 { id = 3, index = "03" }, new tbiou05 { id = 4, index = "04" } });
+            sql = iou.ToSql();
+            Assert.Equal(@"MERGE INTO [tbiou05] t1 
+USING (SELECT 1 as [id], N'01' as [index] 
+UNION ALL
+ SELECT 2, N'02' 
+UNION ALL
+ SELECT 3, N'03' 
+UNION ALL
+ SELECT 4, N'04' ) t2 ON (t1.[id] = t2.id) 
+WHEN MATCHED THEN 
+  update set [index] = t2.[index] 
+WHEN NOT MATCHED THEN 
+  insert ([id], [index]) 
+  values (t2.[id], t2.[index]);", sql);
+            Assert.Equal(4, iou.ExecuteAffrows());
+
+            iou = fsql.InsertOrUpdate<tbiou05>().SetSource(new[] { new tbiou05 { id = 1, index = "001" }, new tbiou05 { id = 2, index = "002" }, new tbiou05 { id = 3, index = "003" }, new tbiou05 { id = 4, index = "004" } });
+            sql = iou.ToSql();
+            Assert.Equal(@"MERGE INTO [tbiou05] t1 
+USING (SELECT 1 as [id], N'001' as [index] 
+UNION ALL
+ SELECT 2, N'002' 
+UNION ALL
+ SELECT 3, N'003' 
+UNION ALL
+ SELECT 4, N'004' ) t2 ON (t1.[id] = t2.id) 
+WHEN MATCHED THEN 
+  update set [index] = t2.[index] 
+WHEN NOT MATCHED THEN 
+  insert ([id], [index]) 
+  values (t2.[id], t2.[index]);", sql);
+            Assert.Equal(4, iou.ExecuteAffrows());
+            var lst = fsql.Select<tbiou05>().Where(a => new[] { 1, 2, 3, 4 }.Contains(a.id)).ToList();
+            Assert.Equal(4, lst.Where(a => a.index == "00" + a.id).Count());
+        }
+        class tbiou05
+        {
+            public int id { get; set; }
+            public string index { get; set; }
+        }
     }
 }
