@@ -1,6 +1,8 @@
 ﻿using FreeSql.DataAnnotations;
+
 using System;
 using System.Diagnostics;
+
 using Xunit;
 
 namespace FreeSql.Tests.SqlServer
@@ -928,7 +930,10 @@ GROUP BY a.[Nickname]";
                 .Where((a, b) => a.Id > 0 && b.UserId > 0)
                 .ToSql((a, b) => new
                 {
-                    a.Nickname, b.sum1, b.UserId, a.Id
+                    a.Nickname,
+                    b.sum1,
+                    b.UserId,
+                    a.Id
                 });
             var assertSql122 = @"SELECT a.[Nickname] as1, b.[sum1] as2, b.[UserId] as3, a.[Id] as4 
 FROM ( 
@@ -955,7 +960,10 @@ WHERE (a.[Id] > 0 AND b.[UserId] > 0)";
                 .Where((a, b) => a.Id > 0 && b.UserId > 0)
                 .ToList((a, b) => new
                 {
-                    a.Nickname, b.sum1, b.UserId, a.Id
+                    a.Nickname,
+                    b.sum1,
+                    b.UserId,
+                    a.Id
                 });
             Assert.Equal(list122.Count, 6);
             Assert.Equal("name01", list122[0].Nickname);
@@ -1208,5 +1216,64 @@ WHERE (a.[rownum] = 1) AND ((a.[Nickname] = N'name02' OR a.[Nickname] = N'name03
             public int rownum { get; set; }
             public string remark { get; set; }
         }
+
+        #region Vic Demo 20220813
+
+        [Fact]
+        public void VicDemo20220813()
+        {
+            var fsql = g.sqlserver;
+            var id = FreeUtil.NewMongodbId();
+            var sql1 = fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity1)).As("bi")
+                .Where(bi => bi.HeadId == id && bi.IsDeleted == false)
+                .Where(bi => fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity2)).As("ti")
+                .Where(ti => ti.RefHeadId == bi.HeadId && ti.RefItemId == bi.Id)
+                .Sum(ti => ti.Quantity) <= bi.Quantity)
+                .ToSql();
+            var sql2 = fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity1)).As("bi")
+                .Where(bi => bi.HeadId == id && bi.IsDeleted == false)
+                .Where(bi => bi.HeadId == id && bi.IsDeleted == false)
+                    .WithTempQuery(bi => new
+                    {
+                        bi.Id,
+                        BillItem = bi,
+                        bi.Quantity,
+                        RefQuantity = fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity2)).As("ti")
+                            .Where(ti => ti.RefHeadId == bi.HeadId && ti.RefItemId == bi.Id)
+                            .Sum(ti => ti.Quantity),
+                    })
+                    .Where(v => v.RefQuantity < v.Quantity)
+                .ToSql();
+        }
+
+        abstract class SoftDelete
+        {
+            public bool IsDeleted { get; set; }
+        }
+        abstract class BaseHeadEntity: SoftDelete
+        {
+            public Guid Id { get; set; }
+            public string No { get; set; }
+            public DateTime Date { get; set; }
+        }
+        [Table(Name = "bhe_1")]
+        class BhEntity1 : BaseHeadEntity { }
+        [Table(Name = "bhe_2")]
+        class BhEntity2 : BaseHeadEntity { }
+        abstract class BaseItemEntity: SoftDelete
+        {
+            public Guid Id { get; set; }
+            public Guid HeadId { get; set; }
+            public int GoodsId { get; set; }
+            public decimal Quantity { get; set; }
+            public Guid? RefHeadId { get; set; }
+            public Guid? RefItemId { get; set; }
+        }
+        [Table(Name = "bie_1")]
+        class BiEntity1 : BaseItemEntity { }
+        [Table(Name = "bie_2")]
+        class BiEntity2 : BaseItemEntity { } 
+        #endregion
+
     }
 }
