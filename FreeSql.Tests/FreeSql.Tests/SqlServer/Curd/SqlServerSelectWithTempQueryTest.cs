@@ -50,6 +50,31 @@ FROM (
 WHERE (a.[RefQuantity] < a.[Quantity])", sql2);
         }
 
+        [Fact]
+        public void VicDemo20220815()
+        {
+            var fsql = g.sqlite;
+            Assert.Throws<NullReferenceException>(() => {
+                var sql1 = fsql.Select<BaseHeadEntity>().AsType(typeof(BhEntity1))
+                    .Where(vh => fsql.Select<BaseHeadEntity>().AsType(typeof(BhEntity1)).Where(bh => bh.IsDeleted == false)
+                        .FromQuery(fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity1)).As("bi").Where(bi => bi.IsDeleted == false))
+                        .InnerJoin(v => v.t1.Id == v.t2.HeadId)
+                        .WithTempQuery(v => new
+                        {
+                            BillHead = v.t1,
+                            Quantity = v.t2.Quantity,
+                            RefQuantity = fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity2)).As("bi2")
+                                .Where(ti2 => ti2.RefHeadId == v.t2.HeadId && ti2.RefItemId == v.t2.Id)
+                                .Sum(ti2 => ti2.Quantity),
+                        })
+                        .Where(v => v.RefQuantity < v.Quantity)
+                        .GroupBy(v => v.BillHead.Id)
+                        .ToList(v => v.Key).Contains(vh.Id)
+                    ).OrderByDescending(vh => vh.Date)
+                    .ToSql();
+            });
+        }
+
         abstract class SoftDelete
         {
             public bool IsDeleted { get; set; }
