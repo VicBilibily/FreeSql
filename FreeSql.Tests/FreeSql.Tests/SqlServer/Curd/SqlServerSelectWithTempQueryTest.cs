@@ -1,6 +1,9 @@
 ﻿using FreeSql.DataAnnotations;
+
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+
 using Xunit;
 
 namespace FreeSql.Tests.SqlServer
@@ -180,6 +183,94 @@ FROM (
 WHERE (a.[RefQuantity] < a.[Quantity])", sql2);
         }
 
+        [Fact]
+        public void VicDemo20220816()
+        {
+            var fsql = g.sqlserver;
+            #region DEMO数据
+            fsql.Delete<BhEntity3>("1=1").ExecuteAffrows();
+            fsql.Delete<BiEntity1>("1=1").ExecuteAffrows();
+            fsql.Delete<BiEntity2>("1=1").ExecuteAffrows();
+            var bhSource = new List<BhEntity3>()
+            {
+                new() { Id=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f41"),No="BH001",Date=new DateTime(2022,08,16),UserField1="BH1UF001",UserField2="BH1UF002",UserField3="BH1UF003" },
+                new() { Id=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f42"),No="BH002",Date=new DateTime(2022,08,16),UserField1="BH2UF001",UserField2="BH2UF002",UserField3="BH2UF003" },
+                new() { Id=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f43"),No="BH003",Date=new DateTime(2022,08,16),UserField1="BH3UF001",UserField2="BH3UF002",UserField3="BH3UF003" },
+                new() { Id=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f44"),No="BH004",Date=new DateTime(2022,08,16),UserField1="BH4UF001",UserField2="BH4UF002",UserField3="BH4UF003" },
+                new() { Id=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f45"),No="BH005",Date=new DateTime(2022,08,16),UserField1="BH5UF001",UserField2="BH5UF002",UserField3="BH5UF003" },
+            };
+            var bi1Source = new List<BiEntity1>()
+            {
+                new() { Id=Guid.Parse("62c455b6-1b24-a468-00ef-87c86362d971"),HeadId=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f41"),GoodsId=1,Quantity=100 },
+                new() { Id=Guid.Parse("62c455b6-1b24-a468-00ef-87c86362d972"),HeadId=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f42"),GoodsId=2,Quantity=100 },
+                new() { Id=Guid.Parse("62c455b6-1b24-a468-00ef-87c86362d973"),HeadId=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f43"),GoodsId=3,Quantity=100 },
+                new() { Id=Guid.Parse("62c455b6-1b24-a468-00ef-87c86362d974"),HeadId=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f44"),GoodsId=4,Quantity=100 },
+                new() { Id=Guid.Parse("62c455b6-1b24-a468-00ef-87c86362d975"),HeadId=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f45"),GoodsId=5,Quantity=100 },
+            };
+            var bi2Source = new List<BiEntity2>()
+            {
+                new() { Id=Guid.Parse("62d02b69-8838-2bf0-009d-adcb760ec361"),HeadId=Guid.Parse("62d04bb1-e53d-1ae8-00d9-82bf2d58f631"),GoodsId=1,Quantity=10,RefHeadId=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f41"),RefItemId=Guid.Parse("62c455b6-1b24-a468-00ef-87c86362d971") },
+                new() { Id=Guid.Parse("62d02b69-8838-2bf0-009d-adcb760ec362"),HeadId=Guid.Parse("62d04bb1-e53d-1ae8-00d9-82bf2d58f632"),GoodsId=2,Quantity=10,RefHeadId=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f42"),RefItemId=Guid.Parse("62c455b6-1b24-a468-00ef-87c86362d972") },
+                new() { Id=Guid.Parse("62d02b69-8838-2bf0-009d-adcb760ec363"),HeadId=Guid.Parse("62d04bb1-e53d-1ae8-00d9-82bf2d58f633"),GoodsId=3,Quantity=10,RefHeadId=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f43"),RefItemId=Guid.Parse("62c455b6-1b24-a468-00ef-87c86362d973") },
+                new() { Id=Guid.Parse("62d02b69-8838-2bf0-009d-adcb760ec364"),HeadId=Guid.Parse("62d04bb1-e53d-1ae8-00d9-82bf2d58f634"),GoodsId=4,Quantity=10,RefHeadId=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f44"),RefItemId=Guid.Parse("62c455b6-1b24-a468-00ef-87c86362d974") },
+                new() { Id=Guid.Parse("62d02b69-8838-2bf0-009d-adcb760ec365"),HeadId=Guid.Parse("62d04bb1-e53d-1ae8-00d9-82bf2d58f635"),GoodsId=5,Quantity=10,RefHeadId=Guid.Parse("62b978e5-d97e-6c58-009b-35137f900f45"),RefItemId=Guid.Parse("62c455b6-1b24-a468-00ef-87c86362d975") },
+            };
+            fsql.InsertOrUpdate<BhEntity3>().SetSource(bhSource).ExecuteAffrows();
+            fsql.InsertOrUpdate<BiEntity1>().SetSource(bi1Source).ExecuteAffrows();
+            fsql.InsertOrUpdate<BiEntity2>().SetSource(bi2Source).ExecuteAffrows(); 
+            #endregion
+            #region 能正常返回实体类的所有字段
+            var normal = fsql.Select<BaseHeadEntity>().AsType(typeof(BhEntity3))
+                .Where(vh => fsql.Select<BaseHeadEntity>().AsType(typeof(BhEntity3)).Where(bh => bh.IsDeleted == false)
+                    .FromQuery(fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity1)).As("bi").Where(bi => bi.IsDeleted == false))
+                    .InnerJoin(v => v.t1.Id == v.t2.HeadId)
+                    .WithTempQuery(v => new
+                    {
+                        BillHead = v.t1,
+                        Quantity = v.t2.Quantity,
+                        RefQuantity = fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity2)).As("bi2")
+                            .Where(ti2 => ti2.RefHeadId == v.t2.HeadId && ti2.RefItemId == v.t2.Id)
+                            .Sum(ti2 => ti2.Quantity),
+                    })
+                    .Where(v => v.RefQuantity < v.Quantity)
+                    .Distinct()
+                    .ToList(v => v.BillHead.Id).Contains(vh.Id)
+                ).OrderByDescending(vh => vh.Date)
+                .ToList();
+            Assert.Equal(bhSource[0], normal[0]); 
+            #endregion
+
+            var testCreate = () =>
+            fsql.Select<BaseHeadEntity>().AsType(typeof(BhEntity3))
+                .FromQuery(
+                    fsql.Select<BaseHeadEntity>().AsType(typeof(BhEntity3)).Where(bh => bh.IsDeleted == false)
+                        .FromQuery(fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity1)).As("bi").Where(bi => bi.IsDeleted == false))
+                        .InnerJoin(v => v.t1.Id == v.t2.HeadId)
+                        .WithTempQuery(v => new
+                        {
+                            BillHead = v.t1,
+                            Quantity = v.t2.Quantity,
+                            RefQuantity = fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity2)).As("bi2")
+                                .Where(ti2 => ti2.RefHeadId == v.t2.HeadId && ti2.RefItemId == v.t2.Id)
+                                .Sum(ti2 => ti2.Quantity),
+                        })
+                        .Where(v => v.RefQuantity < v.Quantity)
+                        .Distinct()
+                        .WithTempQuery(v => new { v.BillHead.Id })
+                )
+                .RightJoin(v => v.t1.Id == v.t2.Id)
+                .OrderByDescending(v => v.t1.Date);
+
+            // 只返回基类的字段，实体类的字段丢失
+            var lostFields = testCreate().ToList(v => v.t1);
+            Assert.NotEqual(bhSource[0], lostFields[0]);
+            // 直接报类型转换错误
+            Assert.Throws<Exception>(() =>
+            {
+                var throwError = testCreate().ToList();
+            });
+        }
+
         abstract class SoftDelete
         {
             public bool IsDeleted { get; set; }
@@ -194,6 +285,28 @@ WHERE (a.[RefQuantity] < a.[Quantity])", sql2);
         class BhEntity1 : BaseHeadEntity { }
         [Table(Name = "bhe_2")]
         class BhEntity2 : BaseHeadEntity { }
+        [Table(Name = "bhe_3")]
+        class BhEntity3 : BaseHeadEntity
+        {
+            [Column(Name = "f_usr_001")]
+            public string UserField1 { get; set; }
+            [Column(Name = "f_usr_002")]
+            public string UserField2 { get; set; }
+            [Column(Name = "f_usr_003")]
+            public string UserField3 { get; set; }
+
+            public override bool Equals(object obj)
+            {
+                if (base.Equals(obj)) return true;
+                var as1 = obj as BhEntity3;
+                if (as1 is null) return false;
+                return base.Id == as1.Id &&
+                    this.UserField1 == as1.UserField1 &&
+                    this.UserField2 == as1.UserField2 &&
+                    this.UserField3 == as1.UserField3;
+            }
+        }
+
         abstract class BaseItemEntity : SoftDelete
         {
             public Guid Id { get; set; }
@@ -1130,7 +1243,10 @@ GROUP BY a.[Nickname]";
                 .Where((a, b) => a.Id > 0 && b.UserId > 0)
                 .ToSql((a, b) => new
                 {
-                    a.Nickname, b.sum1, b.UserId, a.Id
+                    a.Nickname,
+                    b.sum1,
+                    b.UserId,
+                    a.Id
                 });
             var assertSql122 = @"SELECT a.[Nickname] as1, b.[sum1] as2, b.[UserId] as3, a.[Id] as4 
 FROM ( 
@@ -1157,7 +1273,10 @@ WHERE (a.[Id] > 0 AND b.[UserId] > 0)";
                 .Where((a, b) => a.Id > 0 && b.UserId > 0)
                 .ToList((a, b) => new
                 {
-                    a.Nickname, b.sum1, b.UserId, a.Id
+                    a.Nickname,
+                    b.sum1,
+                    b.UserId,
+                    a.Id
                 });
             Assert.Equal(list122.Count, 6);
             Assert.Equal("name01", list122[0].Nickname);
