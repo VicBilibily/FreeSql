@@ -382,6 +382,46 @@ WHERE (a.[RefQuantity] < a.[Quantity])", sql2);
         class BiEntity2 : BaseItemEntity { }
         #endregion
 
+        #region 2022/12/29
+        [Fact]
+        public void VicDemo20221209()
+        {
+            var fsql = g.mysql;
+            var sql = fsql.Select<BaseDataEntity>().AsType(typeof(GoodsData))
+                .ToSql(v => new GoodsDataDTO()
+                {
+                    Id = v.Id,
+                    GoodsNo = v.Code,
+                    GoodsName = v.Name,
+                });
+            // 解析会连带导出 CategoryId ，但是如果查询别名不是 a 时就会重置到基类表
+            // SELECT a.`CategoryId` as1, v.`Id` as2, v.`Code` as3, v.`Name` as4 
+            // FROM `FreeSqlTest`.`bdd_1` a, `BaseDataEntity` v
+        }
+        abstract class BaseDataEntity
+        {
+            public Guid Id { get; set; }
+            public virtual int CategoryId { get; set; }
+            public virtual string Code { get; set; }
+            public virtual string Name { get; set; }
+        }
+        [Table(Name = "`FreeSqlTest`.`bdd_1`")]
+        class GoodsData : BaseDataEntity
+        {
+            public override Int32 CategoryId { get; set; }
+            public override string Code { get; set; }
+            public override string Name { get; set; }
+        }
+        class GoodsDataDTO
+        {
+            public Guid Id { get; set; }
+            public int CategoryId { get; set; }
+            public string GoodsNo { get; set; }
+            public string GoodsName { get; set; }
+        }
+        #endregion
+
+
         [Fact]
         public void SingleTablePartitionBy()
         {
