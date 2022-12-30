@@ -270,7 +270,7 @@ ORDER BY a.[Date] DESC", sql3);
             }
             Assert.Equal(bhSource[0], lostFields[0]);
             // 测试：直接报类型转换错误
-            lostFields = testCreate().ToList(); 
+            lostFields = testCreate().ToList();
             Assert.Equal(5, lostFields.Count);
             for (var xxx = 0; xxx < lostFields.Count; xxx++)
             {
@@ -375,6 +375,7 @@ WHERE (a.[RefQuantity] < a.[Quantity])", sql2);
             public decimal Quantity { get; set; }
             public Guid? RefHeadId { get; set; }
             public Guid? RefItemId { get; set; }
+            public Guid? RefItemComId { get; set; }
         }
         [Table(Name = "bie_1")]
         class BiEntity1 : BaseItemEntity { }
@@ -384,7 +385,7 @@ WHERE (a.[RefQuantity] < a.[Quantity])", sql2);
 
         #region 2022/12/29
         [Fact]
-        public void VicDemo20221209()
+        public void VicDemo20221229()
         {
             var fsql = g.mysql;
             var sql = fsql.Select<BaseDataEntity>().AsType(typeof(GoodsData))
@@ -421,6 +422,74 @@ WHERE (a.[RefQuantity] < a.[Quantity])", sql2);
         }
         #endregion
 
+        #region 2022/12/30
+        abstract class BaseItemComEntity : SoftDelete
+        {
+            public Guid Id { get; set; }
+            public Guid HeadId { get; set; }
+            public Guid ItemId { get; set; }
+            public int GoodsId { get; set; }
+            public int ComponentId { get; set; }
+            public decimal Quantity { get; set; }
+            public int Level { get; set; }
+        }
+        [Table(Name = "bic_1")]
+        class BicEntity1 : BaseItemComEntity { }
+        [Fact]
+        public void VicDemo20221230()
+        {
+            var fsql = g.mysql;
+            // 逻辑相同 sql1 能够生成 sql2 就会报类型转换错误
+            var sql1 = fsql.Select<BaseItemComEntity>().AsType(typeof(BicEntity1)).As("bic")
+                .Where(bic => bic.Level == 0)
+                .FromQuery(fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity1)).As("bi"))
+                .InnerJoin((bic, bi) => bic.ItemId == bi.Id)
+                .Where((bic, bi) => bi.IsDeleted == false)
+                .WithTempQuery((bic, _) => bic)
+                .FromQuery(fsql.Select<BaseHeadEntity>().AsType(typeof(BhEntity1)).As("bh"))
+                .InnerJoin((bic, bh) => bic.HeadId == bh.Id)
+                .Where((bic, bh) => bh.IsDeleted == false)
+                .WithTempQuery((bic, _) => new
+                {
+                    BillItemCom = bic,
+                    RefQuantity = fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity1)).As("ti")
+                        .Where(ti => ti.RefHeadId == bic.HeadId)
+                        .Where(ti => ti.RefItemId == bic.ItemId)
+                        .Where(ti => ti.RefItemComId == bic.Id)
+                        .Where(ti => ti.IsDeleted == false)
+                        .FromQuery(fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity1)))
+                        .InnerJoin(ti => ti.t1.HeadId == ti.t2.Id)
+                        .Where(ti => ti.t2.IsDeleted == false)
+                        .Sum(ti => ti.t1.Quantity),
+                })
+                .Where(v => v.RefQuantity < v.BillItemCom.Quantity)
+                .ToSql();
+            var sql2 = fsql.Select<BaseItemComEntity>().AsType(typeof(BicEntity1))
+                .Where(v => v.Level == 0)
+                .FromQuery(fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity1)))
+                .InnerJoin(v => v.t1.ItemId == v.t2.Id)
+                .Where(v => v.t2.IsDeleted == false)
+                .WithTempQuery(v => v.t1)
+                .FromQuery(fsql.Select<BaseHeadEntity>().AsType(typeof(BhEntity1)))
+                .InnerJoin(v => v.t1.HeadId == v.t2.Id)
+                .Where(v => v.t2.IsDeleted == false)
+                .WithTempQuery(v => new
+                {
+                    BillItemCom = v.t1,
+                    RefQuantity = fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity1)).As("ti")
+                        .Where(ti => ti.RefHeadId == v.t1.HeadId)
+                        .Where(ti => ti.RefItemId == v.t1.ItemId)
+                        .Where(ti => ti.RefItemComId == v.t1.Id)
+                        .Where(ti => ti.IsDeleted == false)
+                        .FromQuery(fsql.Select<BaseItemEntity>().AsType(typeof(BiEntity1)))
+                        .InnerJoin(ti => ti.t1.HeadId == ti.t2.Id)
+                        .Where(ti => ti.t2.IsDeleted == false)
+                        .Sum(ti => ti.t1.Quantity),
+                })
+                .Where(v => v.RefQuantity < v.BillItemCom.Quantity)
+                .ToSql();
+        }
+        #endregion
 
         [Fact]
         public void SingleTablePartitionBy()
@@ -1414,7 +1483,10 @@ GROUP BY a.[Nickname]";
                 .Where((a, b) => a.Id > 0 && b.UserId > 0)
                 .ToSql((a, b) => new
                 {
-                    a.Nickname, b.sum1, b.UserId, a.Id
+                    a.Nickname,
+                    b.sum1,
+                    b.UserId,
+                    a.Id
                 });
             var assertSql122 = @"SELECT a.[Nickname] as1, b.[sum1] as2, b.[UserId] as3, a.[Id] as4 
 FROM ( 
@@ -1441,7 +1513,10 @@ WHERE (a.[Id] > 0 AND b.[UserId] > 0)";
                 .Where((a, b) => a.Id > 0 && b.UserId > 0)
                 .ToList((a, b) => new
                 {
-                    a.Nickname, b.sum1, b.UserId, a.Id
+                    a.Nickname,
+                    b.sum1,
+                    b.UserId,
+                    a.Id
                 });
             Assert.Equal(list122.Count, 6);
             Assert.Equal("name01", list122[0].Nickname);
